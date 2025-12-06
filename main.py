@@ -6,19 +6,29 @@ from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from contextlib import asynccontextmanager
 import statistics
 
 from database import get_db, init_db
 from models import WeatherData
 from schemas import WeatherDataCreate, WeatherDataResponse, WeatherStats
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown"""
+    # Startup
+    init_db()
+    yield
+    # Shutdown (cleanup if needed)
+
 app = FastAPI(
     title="Weather Data API",
     description="Professional API for weather data collection and analytics",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -29,11 +39,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    init_db()
 
 @app.get("/", tags=["Root"])
 async def root():
@@ -52,7 +57,7 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
 
 @app.post("/weather", response_model=WeatherDataResponse, status_code=201, tags=["Weather Data"])
 async def create_weather_data(
@@ -68,7 +73,7 @@ async def create_weather_data(
     - **pressure**: Atmospheric pressure in hPa
     - **description**: Weather description (e.g., 'Sunny', 'Cloudy')
     """
-    db_weather = WeatherData(**weather.dict())
+    db_weather = WeatherData(**weather.model_dump())
     db.add(db_weather)
     db.commit()
     db.refresh(db_weather)
@@ -127,7 +132,7 @@ async def get_weather_statistics(
     - **location**: Location name
     - **days**: Number of days to analyze (default: 7)
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     weather_data = db.query(WeatherData).filter(
         WeatherData.location.ilike(f"%{location}%"),
@@ -154,7 +159,7 @@ async def get_weather_statistics(
         humidity_avg=round(statistics.mean(humidities), 2),
         pressure_avg=round(statistics.mean(pressures), 2),
         start_date=start_date,
-        end_date=datetime.utcnow()
+        end_date=datetime.now(timezone.utc)
     )
 
 @app.get("/analytics/locations", tags=["Analytics"])
@@ -177,7 +182,7 @@ async def get_temperature_trends(
     
     Returns daily average temperatures for trend analysis
     """
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     weather_data = db.query(WeatherData).filter(
         WeatherData.location.ilike(f"%{location}%"),
