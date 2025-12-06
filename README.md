@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Weather Data API 🌦️
 
 A professional REST API for weather data collection and analytics, built with FastAPI and SQLAlchemy. This project demonstrates best practices in Python API development, including proper project structure, testing, containerization, and documentation.
@@ -248,3 +249,7 @@ For questions or feedback, please open an issue on GitHub.
 ---
 
 **Built with ❤️ using FastAPI and modern Python practices**
+=======
+# weather_tracker
+Another weather tracker dev project
+>>>>>>> da1df611219f0cbcb3b0bf9f537083b9c0364b9f
